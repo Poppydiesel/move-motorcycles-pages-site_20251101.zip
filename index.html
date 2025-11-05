@@ -1,5 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Move Motorcycles — Quote Widget (Safe Test)</title>
+<link href="https://fonts.googleapis.com/css2?family=Play:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{ --navy:#040C34; --gold:#A08C59; }
+*{ box-sizing:border-box }
+html,body{ margin:0; background:var(--navy); color:var(--gold); font-family:'Play',sans-serif; }
+#page{ min-height:100vh; display:flex; align-items:center; justify-content:center; padding:20px; }
+.card{
+  width:100%; max-width:860px; background:var(--navy);
+  border:3px solid var(--gold); border-radius:16px; padding:16px;
+  box-shadow:0 10px 30px rgba(0,0,0,.35);
+}
+h2{ margin:0 0 12px; font-size:20px }
+.grid{ display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+@media (max-width:720px){ .grid{ grid-template-columns:1fr; } }
+label{ font-weight:700; font-size:14px; }
+select, input, textarea{
+  width:100%; border:1px solid var(--gold); border-radius:10px; padding:10px;
+  background:var(--gold); color:var(--navy); font-weight:700; font-family:'Play',sans-serif;
+}
+.row{ display:flex; gap:10px; flex-wrap:wrap; }
+.btn{
+  background:var(--gold); color:#111; border:none; border-radius:10px; padding:10px 12px;
+  font-weight:800; cursor:pointer; }
+.priceBox{
+  border:2px solid var(--gold); border-radius:12px; padding:10px; margin-top:10px;
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px;
+}
+.priceItem{ background:#081034; border:1px solid var(--gold); border-radius:10px; padding:8px; text-align:center; }
+.notice{ display:none; margin-top:8px; font-size:13px; }
+.err{ display:none; color:#ffd580; margin-top:6px; }
+.small{ font-size:12px; opacity:.85; margin-top:6px; }
+</style>
+</head>
+<body>
+<div id="page">
+  <div id="widget" class="card">
+    <h2>Move Motorcycles — Instant Quote</h2>
+
+    <div class="grid">
+      <div>
+        <label for="sel-origin">Collect from (Zone)</label>
+        <select id="sel-origin"></select>
+      </div>
+      <div>
+        <label for="sel-dest">Deliver to (Zone)</label>
+        <select id="sel-dest"></select>
+      </div>
+      <div>
+        <label for="sel-vehicle">Vehicle Type</label>
+        <select id="sel-vehicle">
+          <option>Small</option>
+          <option>Medium</option>
+          <option selected>Large</option>
+          <option>Extra Large</option>
+          <option>Quads</option>
+          <option>Trikes</option>
+        </select>
+      </div>
+      <div>
+        <label for="sel-px">Part Exchange</label>
+        <select id="sel-px">
+          <option>No</option>
+          <option selected>Yes</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="priceBox">
+      <div class="priceItem"><div>Delivery</div><div id="delivery">—</div></div>
+      <div class="priceItem"><div>PX Add-On</div><div id="pxVal">—</div></div>
+      <div class="priceItem"><div>Total</div><div id="total">—</div></div>
+    </div>
+
+    <div class="grid" style="margin-top:10px;">
+      <div><label>Your Name</label><input id="custName" placeholder="Your Name"/></div>
+      <div><label>Your Email address</label><input id="custEmail" placeholder="name@example.com"/></div>
+      <div><label>Your mobile number</label><input id="custMobile" placeholder="07…"/></div>
+      <div><label>Notes</label><textarea id="notes" placeholder="Any timing or access notes…"></textarea></div>
+    </div>
+
+    <div class="row" style="margin-top:10px;">
+      <button id="btnEmail" class="btn">Check quote and availability</button>
+    </div>
+
+    <div id="copyNotice" class="notice">✅ Sent!</div>
+    <div id="formErr" class="err"></div>
+    <div id="err" class="err"></div>
+
+    <div class="small">This test page ensures your script + markup IDs match and renders outside your CMS.</div>
+  </div>
+</div>
+
+<!-- SINGLE SCRIPT — keep this one block, just before </body> -->
 <script>
-// ---- Guard against accidental double load
 if (window.MM_QUOTE_INIT_DONE) {
   console.warn('Move Motorcycles Quote: duplicate script ignored.');
 } else {
@@ -7,15 +105,12 @@ if (window.MM_QUOTE_INIT_DONE) {
 
 document.addEventListener('DOMContentLoaded',()=>{
 
-  /* ========= CONFIG ========= */
   const SUBMIT_ENDPOINT = "https://formspree.io/f/xldoyvpk";
   const RECIPIENT_EMAIL = "quotes@movemotorcycles.co.uk";
 
-  /* ========= HELPERS ========= */
   const money = n => '£'+Number(n).toLocaleString();
   const makeRange=(a,b)=>{const r=[];for(let i=a;i<=b;i++)r.push(i);return r;};
 
-  /* ========= GET DOM ========= */
   const selOrigin  = document.getElementById('sel-origin');
   const selDest    = document.getElementById('sel-dest');
   const selVehicle = document.getElementById('sel-vehicle');
@@ -31,32 +126,23 @@ document.addEventListener('DOMContentLoaded',()=>{
   const formErr    = document.getElementById('formErr');
   const copyNotice = document.getElementById('copyNotice');
 
-  // Hard guard: if key elements aren’t found, stop.
   if(!selOrigin || !selDest || !selVehicle || !selPX){
     console.error('Quote widget: missing selects. Check IDs.');
     if (errEl){ errEl.textContent='There was a problem initialising the dropdowns.'; errEl.style.display='block'; }
     return;
   }
 
-  /* ========= DATA: “Ask” zones + Seeds (Large) ========= */
-  const ASK_ZONES = new Set([25,26,28,29,30,31]); // delivery “Ask” only
+  const ASK_ZONES = new Set([25,26,28,29,30,31]);
 
   const PRICE_SEEDS = [
-    // South (1) ↔ South (2–10)
     {cat:"Large",from:[1],to:[2,3,4,5,6,7,8,9,10],price:229},
     {cat:"Large",from:[2,3,4,5,6,7,8,9,10],to:[1],price:229},
-
-    // South (1) ↔ North band (11–19)
     {cat:"Large",from:[1],to:[11,12,13,14,15,16,17,18,19],price:249},
     {cat:"Large",from:[11,12,13,14,15,16,17,18,19],to:[1],price:249},
-
-    // South (1) ↔ 20 / 22 / 23 / 24
     {cat:"Large",from:[1],to:[20],price:249},{cat:"Large",from:[20],to:[1],price:249},
     {cat:"Large",from:[1],to:[22],price:289},{cat:"Large",from:[22],to:[1],price:289},
     {cat:"Large",from:[1],to:[23],price:349},{cat:"Large",from:[23],to:[1],price:349},
     {cat:"Large",from:[1],to:[24],price:389},{cat:"Large",from:[24],to:[1],price:389},
-
-    // South band (2–10) → North
     {cat:"Large",from:makeRange(2,10),to:[11],price:249},
     {cat:"Large",from:makeRange(2,10),to:makeRange(12,16),price:229},
     {cat:"Large",from:makeRange(2,10),to:makeRange(17,19),price:229},
@@ -64,8 +150,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     {cat:"Large",from:makeRange(2,10),to:[22],price:289},
     {cat:"Large",from:makeRange(2,10),to:[23],price:349},
     {cat:"Large",from:makeRange(2,10),to:[24],price:389},
-
-    // North → South band (2–10) mirrors
     {cat:"Large",from:[11],to:[2,3,4,5,6,7,8,9,10],price:249},
     {cat:"Large",from:[12,13,14,15,16],to:[2,3,4,5,6,7,8,9,10],price:229},
     {cat:"Large",from:[17,18,19],to:[2,3,4,5,6,7,8,9,10],price:229},
@@ -73,53 +157,34 @@ document.addEventListener('DOMContentLoaded',()=>{
     {cat:"Large",from:[22],to:[2,3,4,5,6,7,8,9,10],price:289},
     {cat:"Large",from:[23],to:[2,3,4,5,6,7,8,9,10],price:349},
     {cat:"Large",from:[24],to:[2,3,4,5,6,7,8,9,10],price:389},
-
-    // Specific specials agreed earlier
     {cat:"Large",from:[11],to:[20],price:229},{cat:"Large",from:[20],to:[11],price:229},
     {cat:"Large",from:[11],to:[23],price:349},{cat:"Large",from:[23],to:[11],price:349},
     {cat:"Large",from:[11],to:[24],price:349},{cat:"Large",from:[24],to:[11],price:349},
     {cat:"Large",from:[12],to:[14,17],price:229},{cat:"Large",from:[14,17],to:[12],price:229},
   ];
 
-  /* ========= PX rules ========= */
   const PX_FLAT = 109;
-  const PX_SCOTLAND = 159; // deliver to zones 20–24
+  const PX_SCOTLAND = 159;
 
-  /* ========= PRICE GUARDRAILS (Floors & Adjustments) ========= */
-  // Floors by gap band (|from-to|): 0–1, 2–4, 5–8, 9–15, 16+
   const FLOOR_BANDS = {
     small:  [109, 139, 169, 209, 239],
     medium: [129, 159, 189, 229, 259],
     large:  [149, 179, 209, 249, 279],
     xlarge: [179, 209, 239, 279, 309],
-    quads:  [399, 429, 469, 509, 549],  // unchanged
-    trikes: [519, 558, 609, 662, 714],  // ~30% above quads
+    quads:  [399, 429, 469, 509, 549],
+    trikes: [519, 558, 609, 662, 714],
   };
-
-  // Destination-specific minimums (lift if below)
-  const DEST_ZONE_FLOORS = {
-    20: 249, 21: 259, 22: 289, 23: 349, 24: 389
-  };
-
-  // Simple per-pair numeric override/uplift (applies to all cats unless category map exists)
-  const PER_PAIR_ADJUST = {
-    // "2>14": { override: 239 },
-    // "9>20": { uplift: 20 },
-  };
-
-  // NEW: Category-specific per-pair overrides (takes precedence over floors, seeds & PER_PAIR_ADJUST)
+  const DEST_ZONE_FLOORS = { 20:249, 21:259, 22:289, 23:349, 24:389 };
+  const PER_PAIR_ADJUST = {};
   const PER_PAIR_OVERRIDE_BY_CAT = {
-    // Bumped 12 ↔ 16
     "12>16": { "Small":219, "Medium":229, "Large":249, "Extra Large":279 },
     "16>12": { "Small":219, "Medium":229, "Large":249, "Extra Large":279 },
-    // Nearby smoothing rings: 11 ↔ 16 and 12 ↔ 15
     "11>16": { "Small":219, "Medium":229, "Large":249, "Extra Large":279 },
     "16>11": { "Small":219, "Medium":229, "Large":249, "Extra Large":279 },
     "12>15": { "Small":219, "Medium":229, "Large":249, "Extra Large":279 },
     "15>12": { "Small":219, "Medium":229, "Large":249, "Extra Large":279 }
   };
 
-  /* ========= PRICING CORE ========= */
   function gapPriceSmall(g){ if(g<=1)return 99; if(g<=4)return 129; if(g<=8)return 159; if(g<=15)return 199; return 229; }
   function gapPriceQuads(g){ const bands=[399,429,469,509,549]; if(g<=1)return bands[0]; if(g<=4)return bands[1]; if(g<=8)return bands[2]; if(g<=15)return bands[3]; return bands[4]; }
   function lookupPX(from,to){ return new Set([20,21,22,23,24]).has(to) ? PX_SCOTLAND : PX_FLAT; }
@@ -132,7 +197,6 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(cat==='Extra Large') return L.map(s=>({cat:'Extra Large',from:s.from,to:s.to,price:s.price+30}));
     return [];
   }
-
   function findSeedPrice(cat,from,to){
     const seeds = getSeedsFor(cat);
     for(const s of seeds){
@@ -144,25 +208,9 @@ document.addEventListener('DOMContentLoaded',()=>{
     }
     return null;
   }
+  function bandIndex(gap){ if(gap<=1)return 0; if(gap<=4)return 1; if(gap<=8)return 2; if(gap<=15)return 3; return 4; }
+  function catKey(cat){ return {Small:'small',Medium:'medium',Large:'large','Extra Large':'xlarge',Quads:'quads',Trikes:'trikes'}[cat]||'large'; }
 
-  function catKey(cat){
-    if(cat==='Small') return 'small';
-    if(cat==='Medium') return 'medium';
-    if(cat==='Large') return 'large';
-    if(cat==='Extra Large') return 'xlarge';
-    if(cat==='Quads') return 'quads';
-    if(cat==='Trikes') return 'trikes';
-    return 'large';
-  }
-  function bandIndex(gap){
-    if (gap<=1) return 0;
-    if (gap<=4) return 1;
-    if (gap<=8) return 2;
-    if (gap<=15) return 3;
-    return 4;
-  }
-
-  // Baseline model (before floors/overrides)
   function baselineDelivery(cat,from,to){
     const g = Math.abs(from-to), largeBase = gapPriceSmall(g)+40;
     if(cat==='Small') return largeBase-30;
@@ -173,30 +221,20 @@ document.addEventListener('DOMContentLoaded',()=>{
     if(cat==='Trikes') return Math.round(gapPriceQuads(g)*1.30);
     return 0;
   }
-
-  // Apply floors & overrides
   function applyFloorsAndAdjust(cat, from, to, price){
-    // Category-specific per-pair override (highest precedence)
     const catMap = PER_PAIR_OVERRIDE_BY_CAT[`${from}>${to}`];
-    if (catMap && Object.prototype.hasOwnProperty.call(catMap, cat)) {
-      return catMap[cat];
-    }
+    if (catMap && Object.prototype.hasOwnProperty.call(catMap, cat)) return catMap[cat];
 
     let p = price;
-
-    // 1) Band floor by gap & category
     const gap = Math.abs(from-to);
     const bi  = bandIndex(gap);
     const fk  = catKey(cat);
-    const bandFloors = FLOOR_BANDS[fk] || [];
-    const bandMin = bandFloors[bi] ?? 0;
+    const bandMin = (FLOOR_BANDS[fk]||[])[bi] ?? 0;
     if (typeof p === 'number' && p < bandMin) p = bandMin;
 
-    // 2) Destination-specific floor
     const destMin = DEST_ZONE_FLOORS[to];
     if (typeof destMin === 'number' && typeof p === 'number' && p < destMin) p = destMin;
 
-    // 3) Simple per-pair override/uplift (non-category)
     const key = `${from}>${to}`;
     const adj = PER_PAIR_ADJUST[key];
     if (adj && typeof adj.override === 'number') return adj.override;
@@ -204,7 +242,6 @@ document.addEventListener('DOMContentLoaded',()=>{
 
     return p;
   }
-
   function lookupDelivery(cat,from,to){
     if(ASK_ZONES.has(from)||ASK_ZONES.has(to)) return 'Ask';
     const seeded = findSeedPrice(cat,from,to);
@@ -213,15 +250,12 @@ document.addEventListener('DOMContentLoaded',()=>{
     return price;
   }
 
-  /* ========= POPULATE + WIRE ========= */
   function fillZones(select){
     select.innerHTML='';
     for(let z=1; z<=31; z++){ select.add(new Option(`Zone ${z}`, String(z))); }
   }
-  fillZones(selOrigin);
-  fillZones(selDest);
-  selOrigin.value='1';
-  selDest.value='1';
+  fillZones(selOrigin); fillZones(selDest);
+  selOrigin.value='1'; selDest.value='1';
 
   function calc(){
     try{
@@ -249,23 +283,19 @@ document.addEventListener('DOMContentLoaded',()=>{
       if(errEl){ errEl.textContent='There was a problem calculating the price.'; errEl.style.display='block'; }
     }
   }
-
   selOrigin.addEventListener('change',calc);
   selDest.addEventListener('change',calc);
   selVehicle.addEventListener('change',calc);
   selPX.addEventListener('change',calc);
-  calc(); // first render
+  calc();
 
-  /* ========= SUBMIT (Formspree) ========= */
   document.getElementById('btnEmail')?.addEventListener('click', async (ev)=>{
     ev?.preventDefault?.(); ev?.stopPropagation?.();
-
     const name   = custName.value.trim();
     const email  = custEmail.value.trim();
     const mobile = custMobile.value.trim();
     const validEmail  = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
     const validMobile = mobile.replace(/\D/g,'').length >= 10;
-
     if(!name || !email || !mobile || !validEmail || !validMobile){
       formErr.textContent='Please complete Your Name, a valid Email and Mobile number before sending.';
       formErr.style.display='block';
@@ -294,66 +324,32 @@ document.addEventListener('DOMContentLoaded',()=>{
         method:'POST',
         headers:{'Content-Type':'application/json','Accept':'application/json'},
         body: JSON.stringify({
-          _subject: subject,
-          _replyto: email,
-          message: bodyText,
+          _subject: subject, _replyto: email, message: bodyText,
           recipient: RECIPIENT_EMAIL,
-          origin_zone: selOrigin.value,
-          destination_zone: selDest.value,
-          vehicle_type: selVehicle.value,
-          part_exchange: selPX.value,
+          origin_zone: selOrigin.value, destination_zone: selDest.value,
+          vehicle_type: selVehicle.value, part_exchange: selPX.value,
           delivery_price: deliveryEl.textContent || '',
           px_addon: pxEl.textContent || '',
           total_price: totalEl.textContent || '',
-          customer_name: name,
-          customer_email: email,
-          customer_mobile: mobile,
+          customer_name: name, customer_email: email, customer_mobile: mobile,
           notes: notesEl.value || ''
         })
       });
-
       if(res.ok){
-        formErr.style.display='none';
-        if(copyNotice){
-          copyNotice.style.display='block';
-          copyNotice.style.color='#A4E8A2';
-          copyNotice.textContent='✅ Sent! We’ll email you shortly to confirm availability.';
-        } else {
-          alert('Sent! We’ll email you shortly to confirm availability.');
-        }
-      }else{
-        const txt = await res.text();
-        throw new Error('Submit failed: '+txt);
-      }
+        if(copyNotice){ copyNotice.style.display='block'; copyNotice.style.color='#A4E8A2';
+          copyNotice.textContent='✅ Sent! We’ll email you shortly to confirm availability.'; }
+        else alert('Sent! We’ll email you shortly to confirm availability.');
+      } else { throw new Error(await res.text()); }
     }catch(e){
       console.error(e);
-      if(copyNotice){
-        copyNotice.style.display='block';
-        copyNotice.style.color='#FFD580';
-        copyNotice.textContent='❌ Sorry — couldn’t send just now. Please try again in a moment.';
-      } else {
-        alert('Sorry — couldn’t send just now. Please try again in a moment.');
-      }
+      if(copyNotice){ copyNotice.style.display='block'; copyNotice.style.color='#FFD580';
+        copyNotice.textContent='❌ Sorry — couldn’t send just now. Please try again in a moment.'; }
+      else alert('Sorry — couldn’t send just now. Please try again in a moment.');
     }
   });
 
-  /* ========= Optional: quick console debug to see lifts ========= */
-  window.MM_debugFloors = function(cat='Large'){
-    const rows=[];
-    for(let f=1; f<=31; f++){
-      for(let t=1; t<=31; t++){
-        if (ASK_ZONES.has(f) || ASK_ZONES.has(t)) continue;
-        const base = (findSeedPrice(cat,f,t) ?? baselineDelivery(cat,f,t));
-        const fixed = applyFloorsAndAdjust(cat,f,t, base);
-        if (typeof base==='number' && typeof fixed==='number' && fixed>base){
-          rows.push({cat,from:f,to:t,base,fixed,delta:fixed-base});
-        }
-      }
-    }
-    console.table(rows);
-  };
-
 }); // DOMContentLoaded
-
-} // end guard
+} // guard
 </script>
+</body>
+</html>
